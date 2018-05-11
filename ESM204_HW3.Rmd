@@ -1,0 +1,46 @@
+---
+title: "ESM204HW3"
+author: "Jessica Gomez"
+date: "5/11/2018"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load packages_data}
+
+library(tidyverse)
+library(dplyr)
+library(effsize)
+library(stargazer)
+library(knitr)
+library(car)
+
+whales <- read.csv("~/Downloads/HW3Data (1).csv")
+
+```
+
+
+```{r }
+
+whales$vote < as.factor(whales$vote)
+whales$age <- as.factor(whales$age)
+whales$income <- as.factor(whales$income)
+
+whales$income <- relevel (whales$income, ref = "poor")
+whales$age <- relevel(whales$age, ref = "tothirty")
+
+whales_lm <- lm(vote ~ age + risk + income + bid + NEP, data = whales)
+whales_lm
+```
+
+```{r stargazer, results = 'asis'}
+
+stargazer(whales_lm, type = "html", out = ".html")
+```
+
