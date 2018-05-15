@@ -28,7 +28,6 @@ whales <- read.csv("~/Downloads/HW3Data (1).csv")
 
 ```{r }
 
-whales$vote < as.factor(whales$vote)
 whales$age <- as.factor(whales$age)
 whales$income <- as.factor(whales$income)
 
