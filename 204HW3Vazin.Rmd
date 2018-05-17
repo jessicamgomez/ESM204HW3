@@ -1,0 +1,204 @@
+---
+title: "HW3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(effsize)
+library(car)
+library(RColorBrewer)
+library(ggplot2)
+
+survey <- read_csv("//esm.ucsb.edu/mesm/co2019/jvazin/Desktop/HW3Data (2).csv")
+
+```
+
+Question 1- Regression
+
+```{r}
+summary(survey)
+
+#Relevel the factors
+survey$income<-as.factor(survey$income)
+survey$income<-relevel(survey$income, ref="poor")
+survey$age<-as.factor(survey$age)
+survey$age<-relevel(survey$age, ref="tothirty")
+
+#GLM
+surveySB<-glm(vote~risk+bid+NEP+income+age, data=survey)
+surveySB
+summary(surveySB)
+
+#Table- already did stargazer so don't need 
+coeff<-coefficients(surveySB)
+coeff
+cdf<-as.data.frame(rbind(coeff))
+str(cdf)
+colnames(cdf)
+colnames(cdf)<-c("C", "RR", "P", "NEP", "IM", "IOP", "IR", "IVR", "over60", "To50", "To40", "To60")
+cdf
+
+
+```
+
+Question 2 - Value of Single Whale Death
+```{r}
+
+#4% RR is 1 whale death, what is the value of that compared to the baseline?
+
+#predict vote values
+predictvote<-predict(surveySB)
+surveypredict<-cbind(survey, predictvote)
+
+#populate predicted bids for 4% RR
+survey4<-surveypredict
+survey4$risk<-4
+Bid4<-(cdf$C+
+        (cdf$RR*survey4$risk)+
+        (cdf$NEP*survey4$NEP)+
+        ifelse(survey4$income=="middle", cdf$IM, 0)+
+        ifelse(survey4$income=="rich", cdf$IR, 0)+
+        ifelse(survey4$income=="very_rich", cdf$IVR, 0)+
+        ifelse(survey4$income=="one_percent", cdf$IOP, 0)+
+        ifelse(survey4$age=="tofifty", cdf$To50, 0)+
+        ifelse(survey4$age=="toforty", cdf$To40, 0)+
+        ifelse(survey4$age=="tosixty", cdf$To60, 0)+
+        ifelse(survey4$age=="oversixty", cdf$over60, 0)-
+        0.5)/-cdf$P
+
+
+WTP4<-cbind(survey4,Bid4)
+WTP4
+
+#populate predicted bid for Basline
+survey0<-surveypredict
+survey0$risk<-0
+Bid0<-(cdf$C+
+        (cdf$RR*survey0$risk)+
+        (cdf$NEP*survey0$NEP)+
+        ifelse(survey0$income=="middle", cdf$IM, 0)+
+        ifelse(survey0$income=="rich", cdf$IR, 0)+
+        ifelse(survey0$income=="very_rich", cdf$IVR, 0)+
+        ifelse(survey0$income=="one_percent", cdf$IOP, 0)+
+        ifelse(survey0$age=="tofifty", cdf$To50, 0)+
+        ifelse(survey0$age=="toforty", cdf$To40, 0)+
+        ifelse(survey0$age=="tosixty", cdf$To60, 0)+
+        ifelse(survey0$age=="oversixty", cdf$over60, 0)-
+        0.5)/-cdf$P
+
+WTP04<-cbind(WTP4, Bid0)
+WTP04
+
+#Value of One Whale
+WTP04$onewhale<-WTP04$Bid4-WTP04$Bid0
+
+
+```
+
+Bid Equation
+Bid= (Everything-Vote)/0.0011
+
+**Equation**: Bid=((0.1429+0.0007(risk)+0.0159(NEP)-0.0027(incomemiddle)+0.0048(incomerich)+0.0441(incomevery_rich)+0.0061(incomeone_percent)-0.0105(agetofifty)-0.0401(agetoforty)-0.0367(agetosixty)-0.0204(ageoversixty)) - Vote) / 0.0011
+
+Question 3
+
+```{r}
+
+survey60<-surveypredict
+survey60$risk<-60
+Bid<-(cdf$C+
+        (cdf$RR*survey60$risk)+
+        (cdf$NEP*survey60$NEP)+
+        ifelse(survey60$income=="middle", cdf$IM, 0)+
+        ifelse(survey60$income=="rich", cdf$IR, 0)+
+        ifelse(survey60$income=="very_rich", cdf$IVR, 0)+
+        ifelse(survey60$income=="one_percent", cdf$IOP, 0)+
+        ifelse(survey60$age=="tofifty", cdf$To50, 0)+
+        ifelse(survey60$age=="toforty", cdf$To40, 0)+
+        ifelse(survey60$age=="tosixty", cdf$To60, 0)+
+        ifelse(survey60$age=="oversixty", cdf$over60, 0)-
+        0.5)/-cdf$P
+
+WTP<-round(Bid, 2)
+WTP60<-cbind(survey60,WTP)
+WTP60
+
+```
+
+
+Question 5 & 6
+```{r}
+TWTP<-mean(WTP60$WTP)*150000
+TC<-150000*60
+CS<-TWTP-TC
+NB<-CS-7000000
+
+mean(WTP60$WTP)
+TWTP
+TC
+CS
+NB
+
+```
+
+```{r}
+#Overall Benefit does not outweight cost- Why?
+
+ggplot(data=WTP60)+
+  geom_point(aes(x=predictvote, y=WTP, colour=NEP))+
+  scale_colour_gradient(high = "#FF3300", low = "#FFCC00")
+
+#Since NEP was a large predictor of YES response, how does it effect WTP? At what WTP would SB residents be likely to vote YES? (The value where p > .5, looks like about 200)
+
+orderWTP<-WTP60[order(-WTP),] 
+surveypeople<-seq(1, 500, by=1)
+orderWTP$Number<-surveypeople
+orderWTP$Proportion<-surveypeople/500
+
+
+ggplot(data=orderWTP, aes(x = Proportion, y = WTP))+
+  geom_point(aes(x=Proportion, y=WTP, colour=NEP))+
+  scale_colour_gradient(high = "#FF3300", low = "#FFCC00")+
+  geom_smooth(method = "lm", se = FALSE, color="black")
+
+
+
+
+```
+
+
+Question 7
+
+Risk Reduction=60% RRCost=$1000 Benefit=(20 fewer tons CO2- each transit)
+Carbon Credit $Z per ton, need to incentivize 
+
+If each shipper reduces by 20 tons, recieve $Z per ton*20 tons
+
+
+20*Z=1000
+Z*=1000/20
+Z*= $50 per ton
+
+*$50 per ton*
+
+Question 8
+
+Z*=$50 per ton
+Ships have costs equal to their benefits- so their net benefits are $0
+
+60% reduction is about 15 whales
+
+Social value is TWTP the was calculated before ~ $40,013,073
+
+SB residents willing to pay this much for 60% reduction
+
+If voluntary speed reduction, all VSR costs are zero
+consumer surplus= TWTP and PS=0 
+Total social benefits = CS + PS = *$40,013,073*
+
